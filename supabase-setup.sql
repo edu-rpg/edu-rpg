@@ -36,7 +36,7 @@ CREATE TABLE daily_entries (
 CREATE TABLE entry_value_stamps (
     id SERIAL PRIMARY KEY,
     entry_id INTEGER NOT NULL REFERENCES daily_entries(id) ON DELETE CASCADE,
-    value_type_id INTEGER NOT NULL REFERENCES value_types(id),
+    value_type_id INTEGER NOT NULL REFERENCES value_types(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     student_name TEXT NOT NULL,
     value_name TEXT NOT NULL,

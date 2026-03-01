@@ -26,20 +26,14 @@ async function loadProgressTable() {
     // Build table header with dynamic value type columns
     const thead = document.getElementById('xp-table-head');
     const headerRow = thead.querySelector('tr');
-    // Clear and rebuild
-    headerRow.innerHTML = '';
-    headerRow.innerHTML = '<th>날짜</th><th>인사</th>';
-
-    // All value types (including inactive) for column display
     const allValueTypes = valueTypes || [];
-    allValueTypes.forEach(vt => {
-        const th = document.createElement('th');
-        th.textContent = vt.name;
-        if (!vt.active) th.classList.add('inactive-col');
-        headerRow.appendChild(th);
-    });
 
-    headerRow.innerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
+    let headerHTML = '<th>날짜</th><th>인사</th>';
+    allValueTypes.forEach(vt => {
+        headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
+    });
+    headerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
+    headerRow.innerHTML = headerHTML;
 
     // Load entries
     const { data: entries } = await db

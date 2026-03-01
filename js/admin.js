@@ -241,11 +241,12 @@ async function loadStudentEntries(studentId, studentName) {
 
     // Build header
     const thead = document.getElementById('detail-table-head');
-    thead.innerHTML = '<tr><th>날짜</th><th>인사</th>';
+    let headerHTML = '<tr><th>날짜</th><th>인사</th>';
     allValueTypes.forEach(vt => {
-        thead.innerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
+        headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
-    thead.innerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
+    headerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
+    thead.innerHTML = headerHTML;
 
     // Build rows
     const tbody = document.getElementById('detail-table-body');
