@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경험치 통장 - 관리자</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-left">
+            <h2>⚔️ 경험치 통장 <span class="badge badge-admin">관리자</span></h2>
+        </div>
+        <div class="nav-right">
+            <div class="notification-wrapper">
+                <button class="notification-bell" id="notif-bell">🔔<span class="notif-badge" id="notif-count" style="display:none;"></span></button>
+                <div class="notification-dropdown" id="notif-dropdown">
+                    <div class="notif-header">알림</div>
+                    <div id="notif-list"></div>
+                </div>
+            </div>
+            <a href="admin-approval.html" class="btn btn-small btn-primary">
+                승인 관리 <span id="pending-count" class="count-badge" style="display:none;"></span>
+            </a>
+            <button onclick="logout()" class="btn btn-small btn-secondary">로그아웃</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Value Type Management -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📋 가치 종류 관리</h3>
+                <button class="btn btn-small btn-primary" onclick="showAddValueType()">+ 추가</button>
+            </div>
+            <div id="add-value-type-form" class="inline-form" style="display:none;">
+                <input type="text" id="new-vt-name" placeholder="가치 이름 (예: 국어)">
+                <input type="number" id="new-vt-points" placeholder="포인트 %" value="5" min="1" max="100">
+                <button class="btn btn-small btn-primary" onclick="addValueType()">추가</button>
+                <button class="btn btn-small btn-secondary" onclick="hideAddValueType()">취소</button>
+            </div>
+            <table class="xp-table" id="value-types-table">
+                <thead>
+                    <tr>
+                        <th>이름</th>
+                        <th>포인트</th>
+                        <th>상태</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="value-types-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Students Overview -->
+        <div class="card">
+            <h3>👨‍🎓 학생 목록</h3>
+            <table class="xp-table">
+                <thead>
+                    <tr>
+                        <th>이름</th>
+                        <th>레벨</th>
+                        <th>누적 경험치</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="students-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Student Detail View (hidden by default) -->
+        <div class="card" id="student-detail" style="display:none;">
+            <div class="card-header">
+                <h3>📖 <span id="detail-student-name"></span>의 경험치 기록</h3>
+                <button class="btn btn-small btn-secondary" onclick="hideStudentDetail()">닫기</button>
+            </div>
+            <div class="card-header" style="margin-top:8px;">
+                <div class="level-info-inline">
+                    <span class="level-badge" id="detail-level-badge">Lv.1</span>
+                    <span id="detail-xp-text">0%</span>
+                </div>
+                <button class="btn btn-small btn-primary" onclick="showAddEntryForm()">+ 경험치 추가</button>
+            </div>
+
+            <!-- Admin Add Entry Form -->
+            <div id="admin-add-entry" class="inline-form" style="display:none;">
+                <h4>경험치 직접 추가 (바로 승인됨)</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>날짜</label>
+                        <input type="date" id="admin-entry-date">
+                    </div>
+                    <div class="form-group">
+                        <label>인사</label>
+                        <label class="checkbox-label"><input type="checkbox" id="admin-greetings"><span>3%</span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>과제 개수</label>
+                        <input type="number" id="admin-assignments" min="0" max="20" value="0" class="input-small">
+                    </div>
+                    <div class="form-group">
+                        <label>글쓰기</label>
+                        <select id="admin-writing">
+                            <option value="none">없음</option>
+                            <option value="5%">감사 일기 (5%)</option>
+                            <option value="10%">주제 글쓰기 (10%)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>가치 도장</label>
+                    <div id="admin-value-stamps" class="checkbox-grid"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>칭호</label>
+                        <input type="text" id="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" onclick="submitAdminEntry()">추가</button>
+                    <button class="btn btn-secondary" onclick="hideAddEntryForm()">취소</button>
+                </div>
+            </div>
+
+            <table class="xp-table" id="detail-table">
+                <thead id="detail-table-head"></thead>
+                <tbody id="detail-table-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

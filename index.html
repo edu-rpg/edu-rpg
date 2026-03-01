@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경험치 통장 - 로그인</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>⚔️ 경험치 통장</h1>
+                <p>모험을 시작하려면 로그인하세요!</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">아이디 (이메일)</label>
+                    <input type="email" id="email" required placeholder="이메일을 입력하세요">
+                </div>
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" required placeholder="비밀번호를 입력하세요">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">로그인</button>
+                <p id="login-error" class="error-text" style="display:none;"></p>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>
