@@ -833,6 +833,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         font-size: 1rem;
     }
 
+    .nav-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .notification-dropdown {
+        position: fixed;
+        top: auto;
+        right: 12px;
+        left: 12px;
+        width: auto;
+        margin-top: 8px;
+    }
+
     .container {
         padding: 12px;
     }
