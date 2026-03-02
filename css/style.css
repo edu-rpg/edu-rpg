@@ -773,6 +773,45 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     position: relative;
 }
 
+/* === Stamp Count Item === */
+.stamp-count-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.stamp-count-item .stamp-count {
+    width: 55px;
+}
+
+.stamp-count-item .stamp-count:disabled {
+    opacity: 0.4;
+}
+
+/* === Multi-Penalty Row === */
+.penalty-row-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.penalty-row-item .form-row {
+    align-items: flex-end;
+}
+
+.penalty-row-item .form-group {
+    margin-bottom: 0;
+}
+
+#new-pt-rate-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
 /* === Penalty === */
 .penalty-row { background: rgba(214, 48, 49, 0.08); }
 .penalty-row:hover { background: rgba(214, 48, 49, 0.12); }

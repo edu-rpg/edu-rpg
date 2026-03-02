@@ -3,6 +3,64 @@
 let currentProfile = null;
 let allValueTypes = [];
 
+// --- XP Recalculation Utility ---
+async function recalculateAndSaveXP(studentId) {
+    const { data: entries } = await db
+        .from('daily_entries')
+        .select('*')
+        .eq('student_id', studentId)
+        .eq('status', 'approved');
+
+    let totalXP = 0;
+
+    if (entries && entries.length > 0) {
+        entries.forEach(e => {
+            if (e.greetings) totalXP += 3;
+            if (e.assignments > 0) totalXP += e.assignments * 5;
+            if (e.writing_type === '5%') totalXP += 5;
+            if (e.writing_type === '10%') totalXP += 10;
+        });
+
+        const entryIds = entries.map(e => e.id);
+        const { data: stamps } = await db
+            .from('entry_value_stamps')
+            .select('points, count')
+            .in('entry_id', entryIds);
+
+        if (stamps) {
+            stamps.forEach(s => totalXP += s.points * (s.count || 1));
+        }
+
+        const { data: titles } = await db
+            .from('titles')
+            .select('id')
+            .eq('student_id', studentId)
+            .eq('status', 'approved');
+
+        if (titles) {
+            totalXP += titles.length * 20;
+        }
+    }
+
+    const { data: penalties } = await db
+        .from('penalties')
+        .select('xp_deducted')
+        .eq('student_id', studentId);
+
+    if (penalties) {
+        penalties.forEach(p => totalXP -= p.xp_deducted);
+    }
+
+    totalXP = Math.max(0, totalXP);
+
+    await db
+        .from('profiles')
+        .update({ total_xp: totalXP })
+        .eq('id', studentId);
+
+    return totalXP;
+}
+
 (async () => {
     currentProfile = await requireAuth(['admin']);
     if (!currentProfile) return;
@@ -64,8 +122,10 @@ async function loadPendingEntries() {
         }
 
         entryStamps.forEach(s => {
-            xpItems.push(`${s.value_name} ${s.points}%`);
-            totalXP += s.points;
+            const count = s.count || 1;
+            const stampXP = s.points * count;
+            xpItems.push(count > 1 ? `${s.value_name} x${count} ${stampXP}%` : `${s.value_name} ${s.points}%`);
+            totalXP += stampXP;
         });
 
         if (entry.assignments > 0) {
@@ -136,6 +196,7 @@ async function approveEntry(entryId) {
 
     if (entry) {
         await checkMilestones(entry.student_id, entry.profiles?.name || '');
+        await recalculateAndSaveXP(entry.student_id);
     }
 
     // Remove card from UI
@@ -152,6 +213,13 @@ async function approveEntry(entryId) {
 async function rejectEntry(entryId) {
     if (!confirm('이 항목을 거절하시겠습니까? 삭제됩니다.')) return;
 
+    // Get student_id before deleting
+    const { data: entryData } = await db
+        .from('daily_entries')
+        .select('student_id')
+        .eq('id', entryId)
+        .single();
+
     // Delete stamps
     await db.from('entry_value_stamps').delete().eq('entry_id', entryId);
 
@@ -160,6 +228,11 @@ async function rejectEntry(entryId) {
 
     // Delete entry
     await db.from('daily_entries').delete().eq('id', entryId);
+
+    // Recalculate XP
+    if (entryData) {
+        await recalculateAndSaveXP(entryData.student_id);
+    }
 
     const card = document.getElementById(`entry-card-${entryId}`);
     if (card) {
@@ -192,13 +265,14 @@ async function approveAll() {
         .update({ status: 'approved', ...auditFields })
         .eq('status', 'pending');
 
-    // Check milestones for each affected student
+    // Check milestones and recalculate XP for each affected student
     if (pendingEntries) {
         const checked = new Set();
         for (const e of pendingEntries) {
             if (checked.has(e.student_id)) continue;
             checked.add(e.student_id);
             await checkMilestones(e.student_id, e.profiles?.name || '');
+            await recalculateAndSaveXP(e.student_id);
         }
     }
 
@@ -240,11 +314,21 @@ async function openEditModal(entryId) {
     const container = document.getElementById('edit-value-stamps');
     container.innerHTML = '';
     allValueTypes.filter(vt => vt.active).forEach(vt => {
-        const checked = (stamps || []).some(s => s.value_type_id === vt.id);
-        const label = document.createElement('label');
-        label.className = 'checkbox-label';
-        label.innerHTML = `<input type="checkbox" name="edit-vt" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}" ${checked ? 'checked' : ''}><span>${vt.name} (${vt.points}%)</span>`;
-        container.appendChild(label);
+        const existingStamp = (stamps || []).find(s => s.value_type_id === vt.id);
+        const checked = !!existingStamp;
+        const count = existingStamp ? (existingStamp.count || 1) : 1;
+        const item = document.createElement('div');
+        item.className = 'stamp-count-item';
+        item.innerHTML = `
+            <label class="checkbox-label">
+                <input type="checkbox" name="edit-vt" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}" ${checked ? 'checked' : ''}
+                    onchange="this.closest('.stamp-count-item').querySelector('.stamp-count').disabled = !this.checked;">
+                <span>${vt.name} (${vt.points}%)</span>
+            </label>
+            <input type="number" class="stamp-count input-small" min="1" max="20" value="${count}" ${checked ? '' : 'disabled'}
+                data-vt-id="${vt.id}">
+        `;
+        container.appendChild(item);
     });
 
     document.getElementById('edit-modal').style.display = 'flex';
@@ -280,26 +364,31 @@ async function saveEdit() {
     // Rebuild stamps: delete old, insert new
     await db.from('entry_value_stamps').delete().eq('entry_id', entryId);
 
+    // Get student name
+    const { data: entryWithProfile } = await db
+        .from('daily_entries')
+        .select('student_id, profiles!daily_entries_student_id_fkey(name)')
+        .eq('id', entryId)
+        .single();
+
+    const studentName = entryWithProfile?.profiles?.name || '';
+
     const checkedStamps = document.querySelectorAll('input[name="edit-vt"]:checked');
     if (checkedStamps.length > 0) {
-        // Get student name
-        const { data: entry } = await db
-            .from('daily_entries')
-            .select('student_id, profiles!daily_entries_student_id_fkey(name)')
-            .eq('id', entryId)
-            .single();
-
-        const studentName = entry?.profiles?.name || '';
-
-        const stampRecords = Array.from(checkedStamps).map(cb => ({
-            entry_id: entryId,
-            value_type_id: parseInt(cb.value),
-            date: date,
-            student_name: studentName,
-            value_name: cb.dataset.name,
-            points: parseInt(cb.dataset.points),
-            ...auditFields
-        }));
+        const stampRecords = Array.from(checkedStamps).map(cb => {
+            const countInput = cb.closest('.stamp-count-item').querySelector('.stamp-count');
+            const count = parseInt(countInput.value) || 1;
+            return {
+                entry_id: entryId,
+                value_type_id: parseInt(cb.value),
+                date: date,
+                student_name: studentName,
+                value_name: cb.dataset.name,
+                points: parseInt(cb.dataset.points),
+                count: count,
+                ...auditFields
+            };
+        });
 
         await db.from('entry_value_stamps').insert(stampRecords);
     }
@@ -311,10 +400,10 @@ async function saveEdit() {
         .eq('entry_id', entryId)
         .eq('status', 'pending');
 
-    // Check milestones
+    // Check milestones and recalculate XP
     if (editEntryData) {
-        const studentName = entry?.profiles?.name || '';
         await checkMilestones(editEntryData.student_id, studentName);
+        await recalculateAndSaveXP(editEntryData.student_id);
     }
 
     closeEditModal();

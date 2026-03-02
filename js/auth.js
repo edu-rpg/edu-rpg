@@ -23,7 +23,7 @@ async function requireAuth(allowedRoles) {
     }
     if (allowedRoles && !allowedRoles.includes(profile.role)) {
         if (profile.role === 'admin') {
-            window.location.href = 'admin.html';
+            window.location.href = 'admin-students.html';
         } else {
             window.location.href = 'student.html';
         }
@@ -50,7 +50,7 @@ if (document.getElementById('login-form')) {
     (async () => {
         const profile = await getProfile();
         if (profile) {
-            window.location.href = profile.role === 'admin' ? 'admin.html' : 'student.html';
+            window.location.href = profile.role === 'admin' ? 'admin-students.html' : 'student.html';
         }
     })();
 
@@ -71,7 +71,7 @@ if (document.getElementById('login-form')) {
 
         const profile = await getProfile();
         if (profile) {
-            window.location.href = profile.role === 'admin' ? 'admin.html' : 'student.html';
+            window.location.href = profile.role === 'admin' ? 'admin-students.html' : 'student.html';
         } else {
             errorEl.textContent = '프로필 정보를 찾을 수 없습니다.';
             errorEl.style.display = 'block';

@@ -17,16 +17,16 @@ async function checkMilestones(studentId, studentName) {
     // Get all value stamps for approved entries
     const { data: stamps } = await db
         .from('entry_value_stamps')
-        .select('value_type_id, value_name')
+        .select('value_type_id, value_name, count')
         .in('entry_id', entryIds);
 
     if (!stamps || stamps.length === 0) return;
 
-    // Count stamps per value_type_id
+    // Count stamps per value_type_id (using stamp count)
     const countMap = {};
     const nameMap = {};
     stamps.forEach(s => {
-        countMap[s.value_type_id] = (countMap[s.value_type_id] || 0) + 1;
+        countMap[s.value_type_id] = (countMap[s.value_type_id] || 0) + (s.count || 1);
         nameMap[s.value_type_id] = s.value_name;
     });
 

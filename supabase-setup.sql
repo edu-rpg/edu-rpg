@@ -8,7 +8,8 @@
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin'))
+    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'admin')),
+    total_xp INTEGER NOT NULL DEFAULT 0
 );
 
 -- 2. Value types table (admin-managed)
@@ -43,6 +44,7 @@ CREATE TABLE entry_value_stamps (
     student_name TEXT NOT NULL,
     value_name TEXT NOT NULL,
     points INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     modified_at TIMESTAMPTZ,
     modified_by UUID REFERENCES profiles(id)
@@ -82,8 +84,8 @@ $$ LANGUAGE sql SECURITY DEFINER;
 -- === profiles ===
 -- Everyone can read profiles (needed for name lookups)
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
--- Users can update their own profile
-CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (id = auth.uid());
+-- Users can update their own profile; admin can update any profile
+CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (id = auth.uid() OR is_admin());
 -- Allow insert during signup (handled by trigger below)
 CREATE POLICY "profiles_insert" ON profiles FOR INSERT WITH CHECK (id = auth.uid() OR is_admin());
 
@@ -169,8 +171,10 @@ CREATE TABLE penalty_types (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     percent INTEGER NOT NULL,
-    is_lateness BOOLEAN NOT NULL DEFAULT false,
-    is_rebel BOOLEAN NOT NULL DEFAULT false,
+    is_reset BOOLEAN NOT NULL DEFAULT false,
+    is_rate BOOLEAN NOT NULL DEFAULT false,
+    rate_unit TEXT,
+    rate_unit_count INTEGER,
     active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -192,6 +196,8 @@ CREATE TABLE penalties (
     penalty_percent INTEGER NOT NULL,
     xp_before INTEGER NOT NULL,
     xp_deducted INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    student_name TEXT,
     note TEXT,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
     modified_at TIMESTAMPTZ,
@@ -222,15 +228,44 @@ INSERT INTO value_types (name, points, active) VALUES
 -- ============================================
 -- Seed Data: Default penalty types
 -- ============================================
-INSERT INTO penalty_types (name, percent, is_lateness, is_rebel) VALUES
-    ('욕설', 5, false, false),
-    ('폭력', 5, false, false),
-    ('피해', 5, false, false),
-    ('책임 X', 5, false, false),
-    ('지각', 10, true, false),
-    ('역할 X', 10, false, false),
-    ('예의 X', 20, false, false),
-    ('반역', 100, false, true);
+INSERT INTO penalty_types (name, percent, is_reset, is_rate, rate_unit, rate_unit_count) VALUES
+    ('욕설', 5, false, false, NULL, NULL),
+    ('폭력', 5, false, false, NULL, NULL),
+    ('피해', 5, false, false, NULL, NULL),
+    ('책임 X', 5, false, false, NULL, NULL),
+    ('지각', 10, false, true, '분', 10),
+    ('역할 X', 10, false, false, NULL, NULL),
+    ('예의 X', 20, false, false, NULL, NULL),
+    ('반역', 100, true, false, NULL, NULL);
+
+-- ============================================
+-- MIGRATION: Run this on existing databases
+-- ============================================
+
+-- 1a. profiles: add total_xp
+-- ALTER TABLE profiles ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0;
+
+-- 1b. penalty_types: replace is_lateness/is_rebel with flexible type system
+-- ALTER TABLE penalty_types ADD COLUMN is_reset BOOLEAN NOT NULL DEFAULT false;
+-- ALTER TABLE penalty_types ADD COLUMN is_rate BOOLEAN NOT NULL DEFAULT false;
+-- ALTER TABLE penalty_types ADD COLUMN rate_unit TEXT;
+-- ALTER TABLE penalty_types ADD COLUMN rate_unit_count INTEGER;
+-- UPDATE penalty_types SET is_reset = true WHERE is_rebel = true;
+-- UPDATE penalty_types SET is_rate = true, rate_unit = '분', rate_unit_count = 10 WHERE is_lateness = true;
+-- ALTER TABLE penalty_types DROP COLUMN is_lateness;
+-- ALTER TABLE penalty_types DROP COLUMN is_rebel;
+
+-- 1c. penalties: add count + student_name
+-- ALTER TABLE penalties ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+-- ALTER TABLE penalties ADD COLUMN student_name TEXT;
+-- UPDATE penalties p SET student_name = pr.name FROM profiles pr WHERE p.student_id = pr.id;
+
+-- 1d. entry_value_stamps: add count
+-- ALTER TABLE entry_value_stamps ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+
+-- 1e. profiles RLS: allow admin to update any profile (for total_xp sync)
+-- DROP POLICY "profiles_update_own" ON profiles;
+-- CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (id = auth.uid() OR is_admin());
 
 -- ============================================
 -- SETUP INSTRUCTIONS

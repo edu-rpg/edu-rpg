@@ -28,13 +28,18 @@ async function loadValueTypes() {
     container.innerHTML = '';
 
     activeValueTypes.forEach(vt => {
-        const label = document.createElement('label');
-        label.className = 'checkbox-label';
-        label.innerHTML = `
-            <input type="checkbox" name="value-stamp" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}">
-            <span>${vt.name} (${vt.points}%)</span>
+        const item = document.createElement('div');
+        item.className = 'stamp-count-item';
+        item.innerHTML = `
+            <label class="checkbox-label">
+                <input type="checkbox" name="value-stamp" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}"
+                    onchange="this.closest('.stamp-count-item').querySelector('.stamp-count').disabled = !this.checked; updatePreview();">
+                <span>${vt.name} (${vt.points}%)</span>
+            </label>
+            <input type="number" class="stamp-count input-small" min="1" max="20" value="1" disabled
+                data-vt-id="${vt.id}" oninput="updatePreview();">
         `;
-        container.appendChild(label);
+        container.appendChild(item);
     });
 }
 
@@ -78,8 +83,11 @@ function calculateFormXP() {
     // Value stamps
     document.querySelectorAll('input[name="value-stamp"]:checked').forEach(cb => {
         const points = parseInt(cb.dataset.points);
-        total += points;
-        details.push(`${cb.dataset.name}: ${points}%`);
+        const countInput = cb.closest('.stamp-count-item').querySelector('.stamp-count');
+        const count = parseInt(countInput.value) || 1;
+        const stampXP = points * count;
+        total += stampXP;
+        details.push(count > 1 ? `${cb.dataset.name} x${count}: ${stampXP}%` : `${cb.dataset.name}: ${points}%`);
     });
 
     // Assignments
@@ -165,16 +173,21 @@ async function handleSubmit(e) {
     // Insert value stamps
     const checkedStamps = document.querySelectorAll('input[name="value-stamp"]:checked');
     if (checkedStamps.length > 0) {
-        const stampRecords = Array.from(checkedStamps).map(cb => ({
-            entry_id: entry.id,
-            value_type_id: parseInt(cb.value),
-            date: date,
-            student_name: currentProfile.name,
-            value_name: cb.dataset.name,
-            points: parseInt(cb.dataset.points),
-            modified_at: getNowKST(),
-            modified_by: currentProfile.id
-        }));
+        const stampRecords = Array.from(checkedStamps).map(cb => {
+            const countInput = cb.closest('.stamp-count-item').querySelector('.stamp-count');
+            const count = parseInt(countInput.value) || 1;
+            return {
+                entry_id: entry.id,
+                value_type_id: parseInt(cb.value),
+                date: date,
+                student_name: currentProfile.name,
+                value_name: cb.dataset.name,
+                points: parseInt(cb.dataset.points),
+                count: count,
+                modified_at: getNowKST(),
+                modified_by: currentProfile.id
+            };
+        });
 
         const { error: stampError } = await db
             .from('entry_value_stamps')

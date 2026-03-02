@@ -117,8 +117,10 @@ async function loadProgressTable() {
                 const stampCell = document.createElement('td');
                 const stamp = entryStamps.find(s => s.value_type_id === vt.id);
                 if (stamp) {
-                    stampCell.textContent = stamp.points + '%';
-                    dailyXP += stamp.points;
+                    const count = stamp.count || 1;
+                    const stampXP = stamp.points * count;
+                    stampCell.textContent = count > 1 ? `${stampXP}% (x${count})` : stamp.points + '%';
+                    dailyXP += stampXP;
                 } else {
                     stampCell.textContent = '-';
                 }

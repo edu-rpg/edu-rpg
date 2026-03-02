@@ -10,12 +10,12 @@
 When a student accumulates every 10 approved stamps of the same value type, a milestone notification fires.
 
 **Database** (`supabase-setup.sql`):
-- New `notifications` table: `recipient_id`, `student_id`, `value_type_name`, `milestone_level`, `message`, `status` (sent/read)
+- `notifications` table: `recipient_id`, `student_id`, `value_type_name`, `milestone_level`, `message`, `status` (sent/read)
 - RLS: users read/update their own, admin reads all, logged-in users can insert
 
 **Milestone logic** (`js/notifications.js`):
-- `checkMilestones(studentId, studentName)` — counts all approved stamps per value type, checks for 10-stamp milestones, inserts 2 notification records (student + admin) per milestone, skips duplicates
-- Called from: `approveEntry()`, `saveEdit()`, `approveAll()` in `admin-approval.js`, and `submitAdminEntry()` in `admin.js`
+- `checkMilestones(studentId, studentName)` — counts all approved stamps per value type (using `count` field), checks for 10-stamp milestones, inserts 2 notification records (student + admin) per milestone, skips duplicates
+- Called from: `approveEntry()`, `saveEdit()`, `approveAll()` in `admin-approval.js`, and `submitAdminEntry()` in `admin-students.js`
 
 **Notification bell UI** (`js/notifications.js` + all HTML pages):
 - Bell icon with unread count badge in navbar on all pages
@@ -27,74 +27,97 @@ When a student accumulates every 10 approved stamps of the same value type, a mi
 Students can input the number of assignments completed. Each assignment = 5% XP.
 
 **Database** (`supabase-setup.sql`):
-- Added `assignments INTEGER NOT NULL DEFAULT 0` to `daily_entries`
-
-**Files modified**:
-- `student-input.html` / `js/student-input.js` — number input, XP preview, DB insert
-- `student.html` / `js/student.js` — "과제" column in progress table
-- `admin-approval.html` / `js/admin-approval.js` — shown in approval cards, edit modal includes assignments field
-- `admin.html` / `js/admin.js` — admin entry form, student detail table, XP calculation
-
-**Migration SQL** (run on existing DB):
-```sql
-ALTER TABLE daily_entries ADD COLUMN assignments INTEGER NOT NULL DEFAULT 0;
-```
+- `assignments INTEGER NOT NULL DEFAULT 0` in `daily_entries`
 
 ### 4. Writing Type Label Rename
 - "5줄" → "감사 일기" (5%)
 - "10줄" → "주제 글쓰기" (10%)
-- Updated in: `student-input.html`, `admin.html`, `admin-approval.html`, `js/student-input.js`, `js/admin-approval.js`
 - DB values unchanged (`'5%'` / `'10%'`)
 
 ### 5. Multiple Titles (up to 5)
-Students can now enter up to 5 titles per daily entry (each worth 20% XP), replacing the previous single-title checkbox.
+Students can enter up to 5 titles per daily entry (each worth 20% XP).
 
-**Files modified**:
-- `student-input.html` — replaced checkbox + single input with dynamic title rows + "추가" button
-- `js/student-input.js` — `addTitleInput()` function (max 5), multi-title XP preview, bulk title insert
+### 6. Admin Page Split + Flexible Penalties + XP Caching + Stamp Counts
+Major refactor splitting admin functionality and adding several features.
 
-## Migration Checklist (for existing deployments)
-1. Run in Supabase SQL Editor:
+**Admin page split**:
+- `admin-students.html` / `js/admin-students.js` — New page for student management (list, detail, entry add, penalty). Main admin landing page after login.
+- `admin.html` / `js/admin.js` — Stripped to settings only (value type + penalty type management)
+- `admin-approval.html` — Updated with nav links to both pages
+
+**Flexible penalty types** (replaces `is_lateness`/`is_rebel` booleans):
+- 3 penalty categories: 일반 (flat %), 비율형 (rate-based %), 초기화 (full XP reset)
+- `penalty_types` table: `is_reset`, `is_rate`, `rate_unit`, `rate_unit_count` columns
+- Admin settings form uses type selector dropdown instead of checkboxes
+
+**Multi-penalty application** (`admin-students.html`):
+- Dynamic rows: each row has penalty type dropdown + count + rate-unit input (conditional) + note
+- "+" button adds rows, "삭제" removes rows
+- Live preview sums all rows' deductions
+- Each row stored as single DB row with `count` field
+
+**XP caching** (`profiles.total_xp`):
+- `recalculateAndSaveXP(studentId)` function computes total XP and writes to `profiles.total_xp`
+- Called after: approve, reject, approveAll, saveEdit, admin add entry, penalty apply
+- Student list reads from `profiles.total_xp` (no per-student XP queries)
+- Duplicated in `admin-approval.js` and `admin-students.js` (no module system)
+
+**Stamp counts** (`entry_value_stamps.count`):
+- Student input: checkbox + number input per stamp type
+- XP calculation: `points × count` everywhere
+- Display: shows `x{count}` label when count > 1
+- Milestone counting: uses `+(s.count || 1)` instead of `+1`
+
+**Navigation changes**:
+- Admin login redirects to `admin-students.html` (auth.js)
+- All admin pages have consistent navbar with links to: 학생 관리, 관리 설정, 승인 관리, 로그아웃
+
+## Migration SQL (for existing databases)
+
+Run these in Supabase SQL Editor:
 ```sql
--- Add assignments column
-ALTER TABLE daily_entries ADD COLUMN assignments INTEGER NOT NULL DEFAULT 0;
+-- 1. profiles: add total_xp
+ALTER TABLE profiles ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0;
 
--- Create notifications table
-CREATE TABLE notifications (
-    id SERIAL PRIMARY KEY,
-    recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    value_type_name TEXT NOT NULL,
-    milestone_level INTEGER NOT NULL,
-    message TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'read')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- 2. penalty_types: replace is_lateness/is_rebel with flexible type system
+ALTER TABLE penalty_types ADD COLUMN is_reset BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE penalty_types ADD COLUMN is_rate BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE penalty_types ADD COLUMN rate_unit TEXT;
+ALTER TABLE penalty_types ADD COLUMN rate_unit_count INTEGER;
+UPDATE penalty_types SET is_reset = true WHERE is_rebel = true;
+UPDATE penalty_types SET is_rate = true, rate_unit = '분', rate_unit_count = 10 WHERE is_lateness = true;
+ALTER TABLE penalty_types DROP COLUMN is_lateness;
+ALTER TABLE penalty_types DROP COLUMN is_rebel;
 
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+-- 3. penalties: add count + student_name
+ALTER TABLE penalties ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE penalties ADD COLUMN student_name TEXT;
+UPDATE penalties p SET student_name = pr.name FROM profiles pr WHERE p.student_id = pr.id;
 
-CREATE POLICY "notifications_select" ON notifications FOR SELECT
-    USING (recipient_id = auth.uid() OR is_admin());
-CREATE POLICY "notifications_update_own" ON notifications FOR UPDATE
-    USING (recipient_id = auth.uid());
-CREATE POLICY "notifications_insert" ON notifications FOR INSERT
-    WITH CHECK (auth.uid() IS NOT NULL);
+-- 4. entry_value_stamps: add count
+ALTER TABLE entry_value_stamps ADD COLUMN count INTEGER NOT NULL DEFAULT 1;
+
+-- 5. profiles RLS: allow admin to update any profile (for total_xp sync)
+DROP POLICY "profiles_update_own" ON profiles;
+CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (id = auth.uid() OR is_admin());
 ```
-2. Deploy updated files to Netlify
 
-## File Change Summary
+After migration, deploy updated files and use the XP sync button (or manually recalculate) to backfill `total_xp` for existing students.
+
+## File Change Summary (Refactor #6)
 | File | Change |
 |------|--------|
-| `css/style.css` | Calendar icon fix + notification UI styles |
-| `supabase-setup.sql` | `assignments` column + `notifications` table + RLS |
-| `js/notifications.js` | **New**: milestone check + bell UI |
-| `js/auth.js` | Init notification bell after auth |
-| `js/student-input.js` | Assignments input, multi-title (up to 5), writing label rename |
-| `js/student.js` | Assignments column in progress table |
-| `js/admin.js` | Assignments in XP calc, entry form, detail table, milestone check |
-| `js/admin-approval.js` | Assignments in approval cards/edit modal, milestone checks, writing label rename |
-| `student.html` | Notification bell + assignments column header |
-| `student-input.html` | Notification bell + assignments input + multi-title UI + writing label rename |
-| `admin.html` | Notification bell + assignments in admin entry form + writing label rename |
-| `admin-approval.html` | Notification bell + assignments in edit modal + writing label rename |
-| `CLAUDE.md` | Updated to reflect new features |
+| `supabase-setup.sql` | New columns, updated CREATE TABLEs, migration SQL |
+| `admin-students.html` | **New**: student management page |
+| `js/admin-students.js` | **New**: student list, detail, entry add, multi-penalty, XP recalc |
+| `admin.html` | Removed student section, updated penalty type form |
+| `js/admin.js` | Removed student functions, new penalty type form logic |
+| `admin-approval.html` | Updated nav links, stamp count in edit modal |
+| `js/admin-approval.js` | Added `recalculateAndSaveXP`, stamp counts in display/edit |
+| `js/notifications.js` | Stamp count in milestone calculation |
+| `student-input.html` | Stamp count inputs |
+| `js/student-input.js` | Stamp count in form, preview, submit |
+| `js/student.js` | Stamp count in progress display |
+| `js/auth.js` | Admin redirect → `admin-students.html` |
+| `css/style.css` | `.stamp-count-item`, `.penalty-row-item` styles |
+| `CLAUDE.md` | Updated to reflect all changes |
