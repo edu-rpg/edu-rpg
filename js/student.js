@@ -56,110 +56,163 @@ async function loadProgressTable() {
         .eq('student_id', currentProfile.id)
         .order('date_earned', { ascending: true });
 
+    // Load penalties for this student
+    const { data: penalties } = await db
+        .from('penalties')
+        .select('*')
+        .eq('student_id', currentProfile.id)
+        .order('date', { ascending: true });
+
     const tbody = document.getElementById('xp-table-body');
     tbody.innerHTML = '';
 
-    if (!entries || entries.length === 0) {
+    const hasEntries = entries && entries.length > 0;
+    const hasPenalties = penalties && penalties.length > 0;
+
+    if (!hasEntries && !hasPenalties) {
         document.getElementById('no-data').style.display = 'block';
         return;
     }
 
+    // Build chronological timeline
+    const timeline = [];
+    if (hasEntries) {
+        entries.forEach(e => timeline.push({ type: 'entry', date: e.date, created_at: e.created_at, data: e }));
+    }
+    if (hasPenalties) {
+        penalties.forEach(p => timeline.push({ type: 'penalty', date: p.date, created_at: p.created_at, data: p }));
+    }
+    timeline.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.created_at || '').localeCompare(b.created_at || '');
+    });
+
+    const colCount = allValueTypes.length + 4; // greetings + valueTypes + assignments + writing + titles
+
     let cumulativeXP = 0;
 
-    entries.forEach(entry => {
-        const row = document.createElement('tr');
-        if (entry.status === 'pending') row.classList.add('pending-row');
+    timeline.forEach(item => {
+        if (item.type === 'entry') {
+            const entry = item.data;
+            const row = document.createElement('tr');
+            if (entry.status === 'pending') row.classList.add('pending-row');
 
-        let dailyXP = 0;
+            let dailyXP = 0;
 
-        // Date
-        const dateCell = document.createElement('td');
-        dateCell.textContent = entry.date;
-        row.appendChild(dateCell);
+            const dateCell = document.createElement('td');
+            dateCell.textContent = entry.date;
+            row.appendChild(dateCell);
 
-        // Greetings (3%)
-        const greetCell = document.createElement('td');
-        if (entry.greetings) {
-            greetCell.textContent = '3%';
-            dailyXP += 3;
-        } else {
-            greetCell.textContent = '-';
-        }
-        row.appendChild(greetCell);
-
-        // Value stamps (dynamic columns)
-        const entryStamps = (stamps || []).filter(s => s.entry_id === entry.id);
-        allValueTypes.forEach(vt => {
-            const stampCell = document.createElement('td');
-            const stamp = entryStamps.find(s => s.value_type_id === vt.id);
-            if (stamp) {
-                stampCell.textContent = stamp.points + '%';
-                dailyXP += stamp.points;
+            const greetCell = document.createElement('td');
+            if (entry.greetings) {
+                greetCell.textContent = '3%';
+                dailyXP += 3;
             } else {
-                stampCell.textContent = '-';
+                greetCell.textContent = '-';
             }
-            row.appendChild(stampCell);
-        });
+            row.appendChild(greetCell);
 
-        // Assignments
-        const assignCell = document.createElement('td');
-        if (entry.assignments > 0) {
-            const assignXP = entry.assignments * 5;
-            assignCell.textContent = `${entry.assignments}개 (${assignXP}%)`;
-            dailyXP += assignXP;
+            const entryStamps = (stamps || []).filter(s => s.entry_id === entry.id);
+            allValueTypes.forEach(vt => {
+                const stampCell = document.createElement('td');
+                const stamp = entryStamps.find(s => s.value_type_id === vt.id);
+                if (stamp) {
+                    stampCell.textContent = stamp.points + '%';
+                    dailyXP += stamp.points;
+                } else {
+                    stampCell.textContent = '-';
+                }
+                row.appendChild(stampCell);
+            });
+
+            const assignCell = document.createElement('td');
+            if (entry.assignments > 0) {
+                const assignXP = entry.assignments * 5;
+                assignCell.textContent = `${entry.assignments}개 (${assignXP}%)`;
+                dailyXP += assignXP;
+            } else {
+                assignCell.textContent = '-';
+            }
+            row.appendChild(assignCell);
+
+            const writeCell = document.createElement('td');
+            if (entry.writing_type === '5%') {
+                writeCell.textContent = '5%';
+                dailyXP += 5;
+            } else if (entry.writing_type === '10%') {
+                writeCell.textContent = '10%';
+                dailyXP += 10;
+            } else {
+                writeCell.textContent = '-';
+            }
+            row.appendChild(writeCell);
+
+            const titleCell = document.createElement('td');
+            const entryTitles = (titles || []).filter(t => t.entry_id === entry.id);
+            if (entryTitles.length > 0) {
+                const titleNames = entryTitles.map(t => t.title_name);
+                titleCell.textContent = titleNames.join(', ') + ' (' + (entryTitles.length * 20) + '%)';
+                dailyXP += entryTitles.length * 20;
+            } else {
+                titleCell.textContent = '-';
+            }
+            row.appendChild(titleCell);
+
+            const totalCell = document.createElement('td');
+            totalCell.textContent = dailyXP + '%';
+            row.appendChild(totalCell);
+
+            if (entry.status === 'approved') {
+                cumulativeXP += dailyXP;
+            }
+            const cumCell = document.createElement('td');
+            cumCell.textContent = cumulativeXP + '%';
+            row.appendChild(cumCell);
+
+            const statusCell = document.createElement('td');
+            if (entry.status === 'approved') {
+                statusCell.innerHTML = '<span class="badge badge-approved">승인</span>';
+            } else {
+                statusCell.innerHTML = '<span class="badge badge-pending">대기중</span>';
+            }
+            row.appendChild(statusCell);
+
+            tbody.appendChild(row);
         } else {
-            assignCell.textContent = '-';
+            // Penalty row
+            const p = item.data;
+            const row = document.createElement('tr');
+            row.classList.add('penalty-row');
+
+            const dateCell = document.createElement('td');
+            dateCell.textContent = p.date;
+            row.appendChild(dateCell);
+
+            const noteText = p.note ? ` (${p.note})` : '';
+            const descCell = document.createElement('td');
+            descCell.colSpan = colCount;
+            descCell.className = 'penalty-label';
+            descCell.textContent = `⚠️ ${p.penalty_type_name}${noteText}`;
+            row.appendChild(descCell);
+
+            const xpCell = document.createElement('td');
+            xpCell.className = 'penalty-xp';
+            xpCell.textContent = `-${p.xp_deducted}%`;
+            row.appendChild(xpCell);
+
+            cumulativeXP -= p.xp_deducted;
+            if (cumulativeXP < 0) cumulativeXP = 0;
+
+            const cumCell = document.createElement('td');
+            cumCell.textContent = cumulativeXP + '%';
+            row.appendChild(cumCell);
+
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = '<span class="badge badge-danger">감점</span>';
+            row.appendChild(statusCell);
+
+            tbody.appendChild(row);
         }
-        row.appendChild(assignCell);
-
-        // Writing
-        const writeCell = document.createElement('td');
-        if (entry.writing_type === '5%') {
-            writeCell.textContent = '5%';
-            dailyXP += 5;
-        } else if (entry.writing_type === '10%') {
-            writeCell.textContent = '10%';
-            dailyXP += 10;
-        } else {
-            writeCell.textContent = '-';
-        }
-        row.appendChild(writeCell);
-
-        // Titles (20% each)
-        const titleCell = document.createElement('td');
-        const entryTitles = (titles || []).filter(t => t.entry_id === entry.id);
-        if (entryTitles.length > 0) {
-            const titleNames = entryTitles.map(t => t.title_name);
-            titleCell.textContent = titleNames.join(', ') + ' (' + (entryTitles.length * 20) + '%)';
-            dailyXP += entryTitles.length * 20;
-        } else {
-            titleCell.textContent = '-';
-        }
-        row.appendChild(titleCell);
-
-        // Daily total
-        const totalCell = document.createElement('td');
-        totalCell.textContent = dailyXP + '%';
-        row.appendChild(totalCell);
-
-        // Cumulative (only count approved entries)
-        if (entry.status === 'approved') {
-            cumulativeXP += dailyXP;
-        }
-        const cumCell = document.createElement('td');
-        cumCell.textContent = cumulativeXP + '%';
-        row.appendChild(cumCell);
-
-        // Status
-        const statusCell = document.createElement('td');
-        if (entry.status === 'approved') {
-            statusCell.innerHTML = '<span class="badge badge-approved">승인</span>';
-        } else {
-            statusCell.innerHTML = '<span class="badge badge-pending">대기중</span>';
-        }
-        row.appendChild(statusCell);
-
-        tbody.appendChild(row);
     });
 
     // Update level display

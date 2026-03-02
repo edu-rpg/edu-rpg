@@ -773,6 +773,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     position: relative;
 }
 
+/* === Penalty === */
+.penalty-row { background: rgba(214, 48, 49, 0.08); }
+.penalty-row:hover { background: rgba(214, 48, 49, 0.12); }
+.penalty-label { color: #ff6b6b; font-style: italic; }
+.penalty-xp { color: var(--danger); font-weight: 700; }
+.badge-danger { background: rgba(214, 48, 49, 0.2); color: #ff6b6b; border: 1px solid #ff6b6b; }
+
 /* === Responsive === */
 @media (max-width: 768px) {
     .navbar {

@@ -112,16 +112,18 @@ async function loadPendingEntries() {
 }
 
 async function approveEntry(entryId) {
+    const auditFields = { modified_at: getNowKST(), modified_by: currentProfile.id };
+
     // Approve entry
     await db
         .from('daily_entries')
-        .update({ status: 'approved' })
+        .update({ status: 'approved', ...auditFields })
         .eq('id', entryId);
 
     // Approve associated titles
     await db
         .from('titles')
-        .update({ status: 'approved' })
+        .update({ status: 'approved', ...auditFields })
         .eq('entry_id', entryId)
         .eq('status', 'pending');
 
@@ -178,14 +180,16 @@ async function approveAll() {
         .select('student_id, profiles!daily_entries_student_id_fkey(name)')
         .eq('status', 'pending');
 
+    const auditFields = { modified_at: getNowKST(), modified_by: currentProfile.id };
+
     await db
         .from('daily_entries')
-        .update({ status: 'approved' })
+        .update({ status: 'approved', ...auditFields })
         .eq('status', 'pending');
 
     await db
         .from('titles')
-        .update({ status: 'approved' })
+        .update({ status: 'approved', ...auditFields })
         .eq('status', 'pending');
 
     // Check milestones for each affected student
@@ -258,6 +262,8 @@ async function saveEdit() {
     const assignments = parseInt(document.getElementById('edit-assignments').value) || 0;
     const writing = document.getElementById('edit-writing').value;
 
+    const auditFields = { modified_at: getNowKST(), modified_by: currentProfile.id };
+
     // Update entry
     await db
         .from('daily_entries')
@@ -266,7 +272,8 @@ async function saveEdit() {
             greetings: greetings,
             assignments: assignments,
             writing_type: writing,
-            status: 'approved'
+            status: 'approved',
+            ...auditFields
         })
         .eq('id', entryId);
 
@@ -290,7 +297,8 @@ async function saveEdit() {
             date: date,
             student_name: studentName,
             value_name: cb.dataset.name,
-            points: parseInt(cb.dataset.points)
+            points: parseInt(cb.dataset.points),
+            ...auditFields
         }));
 
         await db.from('entry_value_stamps').insert(stampRecords);

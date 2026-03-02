@@ -29,7 +29,9 @@ CREATE TABLE daily_entries (
     assignments INTEGER NOT NULL DEFAULT 0,
     writing_type TEXT NOT NULL DEFAULT 'none' CHECK (writing_type IN ('none', '5%', '10%')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    modified_at TIMESTAMPTZ,
+    modified_by UUID REFERENCES profiles(id)
 );
 
 -- 4. Entry value stamps table (denormalized)
@@ -40,7 +42,10 @@ CREATE TABLE entry_value_stamps (
     date DATE NOT NULL,
     student_name TEXT NOT NULL,
     value_name TEXT NOT NULL,
-    points INTEGER NOT NULL
+    points INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    modified_at TIMESTAMPTZ,
+    modified_by UUID REFERENCES profiles(id)
 );
 
 -- 5. Titles table
@@ -50,7 +55,10 @@ CREATE TABLE titles (
     entry_id INTEGER NOT NULL REFERENCES daily_entries(id) ON DELETE CASCADE,
     title_name TEXT NOT NULL,
     date_earned DATE NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved'))
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    modified_at TIMESTAMPTZ,
+    modified_by UUID REFERENCES profiles(id)
 );
 
 -- ============================================
@@ -156,6 +164,51 @@ CREATE POLICY "notifications_update_own" ON notifications FOR UPDATE
 CREATE POLICY "notifications_insert" ON notifications FOR INSERT
     WITH CHECK (auth.uid() IS NOT NULL);
 
+-- 7. Penalty types table (admin-managed)
+CREATE TABLE penalty_types (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    percent INTEGER NOT NULL,
+    is_lateness BOOLEAN NOT NULL DEFAULT false,
+    is_rebel BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE penalty_types ENABLE ROW LEVEL SECURITY;
+
+-- Everyone can read penalty types
+CREATE POLICY "penalty_types_select" ON penalty_types FOR SELECT USING (true);
+-- Only admin can insert/update
+CREATE POLICY "penalty_types_insert" ON penalty_types FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "penalty_types_update" ON penalty_types FOR UPDATE USING (is_admin());
+
+-- 8. Penalties table (applied penalties)
+CREATE TABLE penalties (
+    id SERIAL PRIMARY KEY,
+    student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    penalty_type_id INTEGER NOT NULL REFERENCES penalty_types(id),
+    penalty_type_name TEXT NOT NULL,
+    penalty_percent INTEGER NOT NULL,
+    xp_before INTEGER NOT NULL,
+    xp_deducted INTEGER NOT NULL,
+    note TEXT,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    modified_at TIMESTAMPTZ,
+    modified_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE penalties ENABLE ROW LEVEL SECURITY;
+
+-- Students can read their own penalties; admin can read all
+CREATE POLICY "penalties_select" ON penalties FOR SELECT
+    USING (student_id = auth.uid() OR is_admin());
+-- Only admin can insert penalties
+CREATE POLICY "penalties_insert" ON penalties FOR INSERT WITH CHECK (is_admin());
+-- Only admin can delete penalties
+CREATE POLICY "penalties_delete" ON penalties FOR DELETE USING (is_admin());
+
 -- ============================================
 -- Seed Data: Default value types
 -- ============================================
@@ -165,6 +218,19 @@ INSERT INTO value_types (name, points, active) VALUES
     ('과학', 5, true),
     ('미술', 5, true),
     ('음악', 5, true);
+
+-- ============================================
+-- Seed Data: Default penalty types
+-- ============================================
+INSERT INTO penalty_types (name, percent, is_lateness, is_rebel) VALUES
+    ('욕설', 5, false, false),
+    ('폭력', 5, false, false),
+    ('피해', 5, false, false),
+    ('책임 X', 5, false, false),
+    ('지각', 10, true, false),
+    ('역할 X', 10, false, false),
+    ('예의 X', 20, false, false),
+    ('반역', 100, false, true);
 
 -- ============================================
 -- SETUP INSTRUCTIONS

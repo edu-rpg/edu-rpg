@@ -10,8 +10,7 @@ let activeValueTypes = [];
     document.getElementById('user-name').textContent = currentProfile.name;
 
     // Set default date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('entry-date').value = today;
+    document.getElementById('entry-date').value = getTodayISO();
 
     await loadValueTypes();
     setupFormListeners();
@@ -151,7 +150,9 @@ async function handleSubmit(e) {
             greetings: greetings,
             assignments: assignments,
             writing_type: writing,
-            status: 'pending'
+            status: 'pending',
+            modified_at: getNowKST(),
+            modified_by: currentProfile.id
         })
         .select()
         .single();
@@ -170,7 +171,9 @@ async function handleSubmit(e) {
             date: date,
             student_name: currentProfile.name,
             value_name: cb.dataset.name,
-            points: parseInt(cb.dataset.points)
+            points: parseInt(cb.dataset.points),
+            modified_at: getNowKST(),
+            modified_by: currentProfile.id
         }));
 
         const { error: stampError } = await db
@@ -189,7 +192,9 @@ async function handleSubmit(e) {
             entry_id: entry.id,
             title_name: name,
             date_earned: date,
-            status: 'pending'
+            status: 'pending',
+            modified_at: getNowKST(),
+            modified_by: currentProfile.id
         }));
 
         const { error: titleError } = await db
