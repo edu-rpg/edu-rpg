@@ -29,6 +29,8 @@ CREATE TABLE daily_entries (
     greetings BOOLEAN NOT NULL DEFAULT false,
     assignments INTEGER NOT NULL DEFAULT 0,
     writing_type TEXT NOT NULL DEFAULT 'none' CHECK (writing_type IN ('none', '5%', '10%')),
+    bonus_points INTEGER NOT NULL DEFAULT 0,
+    bonus_reason TEXT DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     modified_at TIMESTAMPTZ,
@@ -265,6 +267,10 @@ INSERT INTO penalty_types (name, percent, is_reset, is_rate, rate_unit, rate_uni
 -- 1e. profiles RLS: allow admin to update any profile (for total_xp sync)
 -- DROP POLICY "profiles_update_own" ON profiles;
 -- CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (id = auth.uid() OR is_admin());
+
+-- 1f. daily_entries: add bonus_points and bonus_reason
+-- ALTER TABLE daily_entries ADD COLUMN bonus_points INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE daily_entries ADD COLUMN bonus_reason TEXT DEFAULT '';
 
 -- ============================================
 -- SETUP INSTRUCTIONS

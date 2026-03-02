@@ -65,6 +65,7 @@ async function recalculateAndSaveXP(studentId) {
             if (e.assignments > 0) totalXP += e.assignments * 5;
             if (e.writing_type === '5%') totalXP += 5;
             if (e.writing_type === '10%') totalXP += 10;
+            if (e.bonus_points) totalXP += e.bonus_points;
         });
 
         const entryIds = entries.map(e => e.id);
@@ -242,7 +243,7 @@ async function loadStudentEntries(studentId, studentName) {
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
-    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
+    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th style="min-width:120px;">보너스</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
     thead.innerHTML = headerHTML;
 
     const tbody = document.getElementById('detail-table-body');
@@ -313,6 +314,11 @@ async function loadStudentEntries(studentId, studentName) {
                 dailyXP += entryTitles.length * 20;
             } else { cells += '<td>-</td>'; }
 
+            if (entry.bonus_points > 0) {
+                cells += `<td>${entry.bonus_points}%${entry.bonus_reason ? ' (' + entry.bonus_reason + ')' : ''}</td>`;
+                dailyXP += entry.bonus_points;
+            } else { cells += '<td>-</td>'; }
+
             cells += `<td>${dailyXP}%</td>`;
             if (entry.status === 'approved') cumulativeXP += dailyXP;
             cells += `<td>${cumulativeXP}%</td>`;
@@ -327,7 +333,7 @@ async function loadStudentEntries(studentId, studentName) {
             const row = document.createElement('tr');
             row.classList.add('penalty-row');
 
-            const midCols = allValueTypes.length + 4;
+            const midCols = allValueTypes.length + 5;
             const noteText = p.note ? ` (${p.note})` : '';
             const countText = (p.count || 1) > 1 ? ` x${p.count}` : '';
             let cells = `<td>${p.date}</td>`;
@@ -361,6 +367,8 @@ function resetAddEntryForm() {
     document.getElementById('admin-greetings').checked = false;
     document.getElementById('admin-assignments').value = '0';
     document.getElementById('admin-writing').value = 'none';
+    document.getElementById('admin-bonus-points').value = '0';
+    document.getElementById('admin-bonus-reason').value = '';
     document.getElementById('admin-title-inputs').innerHTML = '<div class="title-row" style="margin-bottom: 6px;"><input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline"></div>';
     document.querySelectorAll('input[name="admin-vt"]').forEach(cb => cb.checked = false);
     document.querySelectorAll('#admin-value-stamps .stamp-count').forEach(input => {
@@ -390,6 +398,8 @@ async function submitAdminEntry() {
     const greetings = document.getElementById('admin-greetings').checked;
     const assignments = parseInt(document.getElementById('admin-assignments').value) || 0;
     const writing = document.getElementById('admin-writing').value;
+    const bonusPoints = parseInt(document.getElementById('admin-bonus-points').value) || 0;
+    const bonusReason = document.getElementById('admin-bonus-reason').value.trim();
     const titleNames = Array.from(document.querySelectorAll('#admin-title-inputs input[name="admin-title-name"]'))
         .map(input => input.value.trim())
         .filter(name => name.length > 0);
@@ -402,6 +412,8 @@ async function submitAdminEntry() {
             greetings: greetings,
             assignments: assignments,
             writing_type: writing,
+            bonus_points: bonusPoints,
+            bonus_reason: bonusReason,
             status: 'approved',
             modified_at: getNowKST(),
             modified_by: currentProfile.id

@@ -32,7 +32,7 @@ async function loadProgressTable() {
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
-    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
+    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th style="min-width:120px;">보너스</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
     headerRow.innerHTML = headerHTML;
 
     // Load entries
@@ -87,7 +87,7 @@ async function loadProgressTable() {
         return (a.created_at || '').localeCompare(b.created_at || '');
     });
 
-    const colCount = allValueTypes.length + 4; // greetings + valueTypes + assignments + writing + titles
+    const colCount = allValueTypes.length + 5; // greetings + valueTypes + assignments + writing + titles + bonus
 
     let cumulativeXP = 0;
 
@@ -159,6 +159,15 @@ async function loadProgressTable() {
                 titleCell.textContent = '-';
             }
             row.appendChild(titleCell);
+
+            const bonusCell = document.createElement('td');
+            if (entry.bonus_points > 0) {
+                bonusCell.textContent = entry.bonus_points + '%' + (entry.bonus_reason ? ' (' + entry.bonus_reason + ')' : '');
+                dailyXP += entry.bonus_points;
+            } else {
+                bonusCell.textContent = '-';
+            }
+            row.appendChild(bonusCell);
 
             const totalCell = document.createElement('td');
             totalCell.textContent = dailyXP + '%';
