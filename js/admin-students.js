@@ -149,23 +149,23 @@ async function loadStudents() {
 }
 
 // --- XP Sync ---
-// async function syncAllXP() {
-//     if (!confirm('모든 학생의 XP를 재계산합니다. 진행하시겠습니까?')) return;
-//
-//     const { data: students } = await db
-//         .from('profiles')
-//         .select('id')
-//         .eq('role', 'student');
-//
-//     if (!students) return;
-//
-//     for (const student of students) {
-//         await recalculateAndSaveXP(student.id);
-//     }
-//
-//     alert('XP 동기화 완료!');
-//     await loadStudents();
-// }
+async function syncAllXP() {
+    if (!confirm('모든 학생의 XP를 재계산합니다. 진행하시겠습니까?')) return;
+
+    const { data: students } = await db
+        .from('profiles')
+        .select('id')
+        .eq('role', 'student');
+
+    if (!students) return;
+
+    for (const student of students) {
+        await recalculateAndSaveXP(student.id);
+    }
+
+    alert('XP 동기화 완료!');
+    await loadStudents();
+}
 
 // --- Student Detail ---
 async function showStudentDetail(studentId, studentName) {
