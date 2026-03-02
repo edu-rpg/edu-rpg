@@ -174,6 +174,11 @@ async function showStudentDetail(studentId, studentName) {
     document.getElementById('detail-student-name').textContent = studentName;
     document.getElementById('student-detail').style.display = 'block';
 
+    // Reset penalty section and add-entry form when switching students
+    hidePenaltySection();
+    hideAddEntryForm();
+    resetAddEntryForm();
+
     // Set default date for admin entry form
     document.getElementById('admin-entry-date').value = getTodayISO();
 
@@ -352,6 +357,18 @@ function hideAddEntryForm() {
     document.getElementById('admin-add-entry').style.display = 'none';
 }
 
+function resetAddEntryForm() {
+    document.getElementById('admin-greetings').checked = false;
+    document.getElementById('admin-assignments').value = '0';
+    document.getElementById('admin-writing').value = 'none';
+    document.getElementById('admin-title-inputs').innerHTML = '<div class="title-row" style="margin-bottom: 6px;"><input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline"></div>';
+    document.querySelectorAll('input[name="admin-vt"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('#admin-value-stamps .stamp-count').forEach(input => {
+        input.value = '1';
+        input.disabled = true;
+    });
+}
+
 function addAdminTitleInput() {
     const container = document.getElementById('admin-title-inputs');
     const count = container.querySelectorAll('.title-row').length;
@@ -436,15 +453,7 @@ async function submitAdminEntry() {
 
     // Reset form
     hideAddEntryForm();
-    document.getElementById('admin-greetings').checked = false;
-    document.getElementById('admin-assignments').value = '0';
-    document.getElementById('admin-writing').value = 'none';
-    document.getElementById('admin-title-inputs').innerHTML = '<div class="title-row" style="margin-bottom: 6px;"><input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline"></div>';
-    document.querySelectorAll('input[name="admin-vt"]').forEach(cb => cb.checked = false);
-    document.querySelectorAll('#admin-value-stamps .stamp-count').forEach(input => {
-        input.value = '1';
-        input.disabled = true;
-    });
+    resetAddEntryForm();
 
     await loadStudentEntries(selectedStudentId, selectedStudentName);
     await loadStudents();
