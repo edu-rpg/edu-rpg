@@ -233,7 +233,7 @@ async function loadStudentEntries(studentId, studentName) {
     // Build header
     const thead = document.getElementById('detail-table-head');
     const colCount = allValueTypes.length + 4;
-    let headerHTML = '<tr><th>날짜</th><th>인사</th>';
+    let headerHTML = '<tr><th style="min-width:120px;">날짜</th><th>인사</th>';
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
@@ -352,6 +352,20 @@ function hideAddEntryForm() {
     document.getElementById('admin-add-entry').style.display = 'none';
 }
 
+function addAdminTitleInput() {
+    const container = document.getElementById('admin-title-inputs');
+    const count = container.querySelectorAll('.title-row').length;
+    if (count >= 5) {
+        alert('칭호는 최대 5개까지 입력할 수 있습니다.');
+        return;
+    }
+    const row = document.createElement('div');
+    row.className = 'title-row';
+    row.style.marginBottom = '6px';
+    row.innerHTML = '<input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline">';
+    container.appendChild(row);
+}
+
 async function submitAdminEntry() {
     if (!selectedStudentId) return;
 
@@ -359,7 +373,9 @@ async function submitAdminEntry() {
     const greetings = document.getElementById('admin-greetings').checked;
     const assignments = parseInt(document.getElementById('admin-assignments').value) || 0;
     const writing = document.getElementById('admin-writing').value;
-    const titleName = document.getElementById('admin-title-name').value.trim();
+    const titleNames = Array.from(document.querySelectorAll('#admin-title-inputs input[name="admin-title-name"]'))
+        .map(input => input.value.trim())
+        .filter(name => name.length > 0);
 
     const { data: entry, error } = await db
         .from('daily_entries')
@@ -400,17 +416,18 @@ async function submitAdminEntry() {
         await db.from('entry_value_stamps').insert(stampRecords);
     }
 
-    // Title
-    if (titleName) {
-        await db.from('titles').insert({
+    // Titles
+    if (titleNames.length > 0) {
+        const titleRecords = titleNames.map(name => ({
             student_id: selectedStudentId,
             entry_id: entry.id,
-            title_name: titleName,
+            title_name: name,
             date_earned: date,
             status: 'approved',
             modified_at: getNowKST(),
             modified_by: currentProfile.id
-        });
+        }));
+        await db.from('titles').insert(titleRecords);
     }
 
     // Check milestones and recalculate XP
@@ -422,7 +439,7 @@ async function submitAdminEntry() {
     document.getElementById('admin-greetings').checked = false;
     document.getElementById('admin-assignments').value = '0';
     document.getElementById('admin-writing').value = 'none';
-    document.getElementById('admin-title-name').value = '';
+    document.getElementById('admin-title-inputs').innerHTML = '<div class="title-row" style="margin-bottom: 6px;"><input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline"></div>';
     document.querySelectorAll('input[name="admin-vt"]').forEach(cb => cb.checked = false);
     document.querySelectorAll('#admin-value-stamps .stamp-count').forEach(input => {
         input.value = '1';

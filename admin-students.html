@@ -96,8 +96,13 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>칭호</label>
-                        <input type="text" id="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)">
+                        <label>칭호 (각 20%)</label>
+                        <div id="admin-title-inputs">
+                            <div class="title-row" style="margin-bottom: 6px;">
+                                <input type="text" name="admin-title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small btn-secondary" onclick="addAdminTitleInput()" style="margin-top: 6px;">+ 칭호 추가</button>
                     </div>
                 </div>
                 <div class="form-actions">

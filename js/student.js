@@ -28,7 +28,7 @@ async function loadProgressTable() {
     const headerRow = thead.querySelector('tr');
     const allValueTypes = valueTypes || [];
 
-    let headerHTML = '<th>날짜</th><th>인사</th>';
+    let headerHTML = '<th style="min-width:120px;">날짜</th><th>인사</th>';
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
