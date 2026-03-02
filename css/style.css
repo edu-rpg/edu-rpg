@@ -160,7 +160,6 @@ body {
 .form-group input[type="date"],
 .form-group input[type="number"],
 .form-group select {
-    width: 100%;
     padding: 10px 14px;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -228,6 +227,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
+    width: 150px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -786,7 +786,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .stamp-count-item .stamp-count {
-    width: 55px;
+    width: 50px;
 }
 
 .stamp-count-item .stamp-count:disabled {
@@ -867,6 +867,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
     .form-row {
         flex-direction: column;
+    }
+
+    .penalty-row-item .form-row {
+        align-items: stretch;
     }
 
     .approval-header {

@@ -189,12 +189,12 @@ async function showStudentDetail(studentId, studentName) {
         const item = document.createElement('div');
         item.className = 'stamp-count-item';
         item.innerHTML = `
-            <label class="checkbox-label" style="width: 20vw" >
+            <label class="checkbox-label">
                 <input type="checkbox" name="admin-vt" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}"
                     onchange="this.closest('.stamp-count-item').querySelector('.stamp-count').disabled = !this.checked;">
                 <span>${vt.name} (${vt.points}%)</span>
             </label>
-            <input type="number" class="stamp-count input-small" style="width: 10vw" min="1" max="20" value="1" disabled data-vt-id="${vt.id}">
+            <input type="number" class="stamp-count input-small" min="1" max="20" value="1" disabled data-vt-id="${vt.id}">
         `;
         container.appendChild(item);
     });

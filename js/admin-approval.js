@@ -334,12 +334,12 @@ async function openEditModal(entryId) {
         const item = document.createElement('div');
         item.className = 'stamp-count-item';
         item.innerHTML = `
-            <label class="checkbox-label" style="width: 20vw">
+            <label class="checkbox-label">
                 <input type="checkbox" name="edit-vt" value="${vt.id}" data-points="${vt.points}" data-name="${vt.name}" ${checked ? 'checked' : ''}
                     onchange="this.closest('.stamp-count-item').querySelector('.stamp-count').disabled = !this.checked;">
                 <span>${vt.name} (${vt.points}%)</span>
             </label>
-            <input type="number" class="stamp-count input-small" style="width: 10vw" min="1" max="20" value="${count}" ${checked ? '' : 'disabled'}
+            <input type="number" class="stamp-count input-small" min="1" max="20" value="${count}" ${checked ? '' : 'disabled'}
                 data-vt-id="${vt.id}">
         `;
         container.appendChild(item);
