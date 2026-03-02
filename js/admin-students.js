@@ -237,7 +237,7 @@ async function loadStudentEntries(studentId, studentName) {
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
-    headerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
+    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th></tr>';
     thead.innerHTML = headerHTML;
 
     const tbody = document.getElementById('detail-table-body');

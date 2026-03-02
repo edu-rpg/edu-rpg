@@ -69,6 +69,17 @@
                     <label>가치 도장</label>
                     <div id="edit-value-stamps"></div>
                 </div>
+                <div class="form-section">
+                    <h4>칭호 (각 20%)</h4>
+                    <div id="titles-section">
+                        <div id="title-inputs">
+                            <div class="title-row" style="margin-bottom: 6px;">
+                                <input type="text" name="title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small btn-secondary" id="add-title-btn" onclick="addTitleInput()" style="margin-top: 6px;">+ 칭호 추가</button>
+                    </div>
+                </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-primary" onclick="saveEdit()">수정 후 승인</button>
                     <button type="button" class="btn btn-secondary" onclick="closeEditModal()">취소</button>

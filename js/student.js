@@ -32,7 +32,7 @@ async function loadProgressTable() {
     allValueTypes.forEach(vt => {
         headerHTML += `<th${!vt.active ? ' class="inactive-col"' : ''}>${vt.name}</th>`;
     });
-    headerHTML += '<th>과제</th><th>글쓰기</th><th>칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
+    headerHTML += '<th>과제</th><th>글쓰기</th><th style="min-width:120px;">칭호</th><th>총 경험치</th><th>누적 경험치</th><th>상태</th>';
     headerRow.innerHTML = headerHTML;
 
     // Load entries
@@ -190,11 +190,10 @@ async function loadProgressTable() {
             dateCell.textContent = p.date;
             row.appendChild(dateCell);
 
-            const noteText = p.note ? ` (${p.note})` : '';
             const descCell = document.createElement('td');
             descCell.colSpan = colCount;
             descCell.className = 'penalty-label';
-            descCell.textContent = `⚠️ ${p.penalty_type_name}${noteText}`;
+            descCell.textContent = `⚠️ ${p.penalty_type_name}`;
             row.appendChild(descCell);
 
             const xpCell = document.createElement('td');

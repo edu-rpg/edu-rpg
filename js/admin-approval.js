@@ -289,6 +289,20 @@ function checkEmpty() {
 // --- Edit Modal ---
 let editEntryData = null;
 
+function addTitleInput() {
+    const container = document.getElementById('title-inputs');
+    const count = container.querySelectorAll('.title-row').length;
+    if (count >= 5) {
+        alert('칭호는 최대 5개까지 입력할 수 있습니다.');
+        return;
+    }
+    const row = document.createElement('div');
+    row.className = 'title-row';
+    row.style.marginBottom = '6px';
+    row.innerHTML = '<input type="text" name="title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline">';
+    container.appendChild(row);
+}
+
 async function openEditModal(entryId) {
     const { data: entry } = await db
         .from('daily_entries')
@@ -330,6 +344,31 @@ async function openEditModal(entryId) {
         `;
         container.appendChild(item);
     });
+
+    // Load titles for this entry
+    const { data: titles } = await db
+        .from('titles')
+        .select('*')
+        .eq('entry_id', entryId);
+
+    const titleContainer = document.getElementById('title-inputs');
+    titleContainer.innerHTML = '';
+
+    if (titles && titles.length > 0) {
+        titles.forEach(t => {
+            const row = document.createElement('div');
+            row.className = 'title-row';
+            row.style.marginBottom = '6px';
+            row.innerHTML = `<input type="text" name="title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline" value="${t.title_name}">`;
+            titleContainer.appendChild(row);
+        });
+    } else {
+        const row = document.createElement('div');
+        row.className = 'title-row';
+        row.style.marginBottom = '6px';
+        row.innerHTML = '<input type="text" name="title-name" placeholder="칭호 이름 (없으면 비워두세요)" class="input-inline">';
+        titleContainer.appendChild(row);
+    }
 
     document.getElementById('edit-modal').style.display = 'flex';
 }
@@ -393,12 +432,25 @@ async function saveEdit() {
         await db.from('entry_value_stamps').insert(stampRecords);
     }
 
-    // Approve associated titles
-    await db
-        .from('titles')
-        .update({ status: 'approved' })
-        .eq('entry_id', entryId)
-        .eq('status', 'pending');
+    // Rebuild titles: delete old, insert new from edit inputs
+    await db.from('titles').delete().eq('entry_id', entryId);
+
+    const titleInputs = document.querySelectorAll('#title-inputs input[name="title-name"]');
+    const titleNames = Array.from(titleInputs)
+        .map(input => input.value.trim())
+        .filter(name => name.length > 0);
+
+    if (titleNames.length > 0) {
+        const titleRecords = titleNames.map(name => ({
+            student_id: editEntryData.student_id,
+            entry_id: entryId,
+            title_name: name,
+            date_earned: date,
+            status: 'approved',
+            ...auditFields
+        }));
+        await db.from('titles').insert(titleRecords);
+    }
 
     // Check milestones and recalculate XP
     if (editEntryData) {
