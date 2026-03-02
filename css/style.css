@@ -617,9 +617,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     border: 2px solid var(--primary);
     border-radius: 12px;
     padding: 30px;
-    max-width: 450px;
+    max-width: 80vw;
     width: 100%;
     text-align: center;
+
+    max-height: 90vh;    /* Prevents modal from being taller than the screen */
+    overflow-y: auto;    /* Adds the scrollbar when content exceeds max-height */
+    position: relative;
 }
 
 .modal h3 {

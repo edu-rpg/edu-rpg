@@ -87,17 +87,20 @@ async function recalculateAndSaveXP(studentId) {
             totalXP += titles.length * 20;
         }
     }
+    console.log('totalXP: ' + totalXP);
 
     const { data: penalties } = await db
         .from('penalties')
         .select('xp_deducted')
         .eq('student_id', studentId);
+    console.log(penalties);
 
     if (penalties) {
         penalties.forEach(p => totalXP -= p.xp_deducted);
     }
 
     totalXP = Math.max(0, totalXP);
+    console.log('final xp :'+ totalXP)
 
     await db
         .from('profiles')
@@ -120,6 +123,7 @@ async function loadStudents() {
         .select('id, name, total_xp')
         .eq('role', 'student')
         .order('name');
+    console.log(students);
 
     const tbody = document.getElementById('students-body');
     tbody.innerHTML = '';
@@ -534,6 +538,7 @@ function onPenaltyRowChange(rowId) {
 }
 
 async function updatePenaltyPreview() {
+    console.log('updatePenaltyPreview');
     const rows = document.querySelectorAll('.penalty-row-item');
     if (rows.length === 0) {
         document.getElementById('penalty-preview').style.display = 'none';
@@ -559,7 +564,7 @@ async function updatePenaltyPreview() {
 
         const isReset = opt.dataset.reset === 'true';
         const isRate = opt.dataset.rate === 'true';
-        const basePercent = parseInt(opt.dataset.percent);
+        const penaltyPercent = parseInt(opt.dataset.percent);
         const typeName = opt.textContent.split(' (')[0];
 
         if (isReset) {
@@ -569,28 +574,22 @@ async function updatePenaltyPreview() {
             return;
         }
 
-        let effectivePercent = basePercent;
+        let penaltyPercentPerCnt = penaltyPercent;
         if (isRate) {
             const rateInput = row.querySelector('.penalty-rate-input');
             const unitCount = parseInt(rateInput.value) || 1;
             const rateUnitCount = parseInt(opt.dataset.rateUnitCount) || 1;
-            effectivePercent = (unitCount / rateUnitCount) * basePercent;
+            penaltyPercentPerCnt = Math.floor((unitCount / rateUnitCount) * penaltyPercent);
         }
 
         const count = parseInt(row.querySelector('.penalty-count-input').value) || 1;
-
-        let rowDeducted = 0;
-        let tempRemaining = remaining;
-        for (let i = 0; i < count; i++) {
-            const deduction = Math.floor(tempRemaining * effectivePercent / 100);
-            rowDeducted += deduction;
-            tempRemaining -= deduction;
-            if (tempRemaining <= 0) { tempRemaining = 0; break; }
+        let deduction = count * penaltyPercentPerCnt;
+        if (deduction > remaining) {
+            deduction = remaining;
         }
-
-        lines.push(`${typeName}${count > 1 ? ' x' + count : ''}: -${rowDeducted}%`);
-        totalDeducted += rowDeducted;
-        remaining -= rowDeducted;
+        remaining -= deduction;
+        lines.push(`${typeName}${count > 1 ? ' x' + count : ''}: -${deduction}%`);
+        totalDeducted += deduction;
         if (remaining < 0) remaining = 0;
     });
 
@@ -629,7 +628,7 @@ async function applyPenalties() {
         const typeName = opt.textContent.split(' (')[0];
         const isReset = opt.dataset.reset === 'true';
         const isRate = opt.dataset.rate === 'true';
-        const basePercent = parseInt(opt.dataset.percent);
+        const penaltyPercent = parseInt(opt.dataset.percent);
         const noteInput = row.querySelector('.penalty-note-input');
         const note = noteInput.value.trim() || null;
 
@@ -652,26 +651,22 @@ async function applyPenalties() {
             return;
         }
 
-        let effectivePercent = basePercent;
+        let penaltyPercentPerCnt = penaltyPercent;
         let rateNote = null;
         if (isRate) {
             const rateInput = row.querySelector('.penalty-rate-input');
             const unitCount = parseInt(rateInput.value) || 1;
             const rateUnitCount = parseInt(opt.dataset.rateUnitCount) || 1;
             const unit = opt.dataset.rateUnit || '';
-            effectivePercent = (unitCount / rateUnitCount) * basePercent;
+            penaltyPercentPerCnt = Math.floor((unitCount / rateUnitCount) * penaltyPercent);
             rateNote = `${unitCount}${unit}`;
         }
 
         const count = parseInt(row.querySelector('.penalty-count-input').value) || 1;
 
-        let rowDeducted = 0;
-        let tempRemaining = remaining;
-        for (let i = 0; i < count; i++) {
-            const deduction = Math.floor(tempRemaining * effectivePercent / 100);
-            rowDeducted += deduction;
-            tempRemaining -= deduction;
-            if (tempRemaining <= 0) { tempRemaining = 0; break; }
+        let deduction = count * penaltyPercentPerCnt;
+        if (deduction > remaining) {
+            deduction = remaining;
         }
 
         const finalNote = [rateNote, note].filter(Boolean).join(' - ') || null;
@@ -681,17 +676,18 @@ async function applyPenalties() {
             student_name: selectedStudentName,
             penalty_type_id: penaltyTypeId,
             penalty_type_name: typeName,
-            penalty_percent: effectivePercent,
+            penalty_percent: penaltyPercentPerCnt,
             xp_before: remaining,
-            xp_deducted: rowDeducted,
+            xp_deducted: deduction,
             count: count,
             note: finalNote,
             date: getTodayISO(),
             modified_at: getNowKST(),
             modified_by: currentProfile.id
         });
+        remaining -= deduction;
 
-        remaining -= rowDeducted;
+        remaining -= deduction;
         if (remaining < 0) remaining = 0;
     });
 
