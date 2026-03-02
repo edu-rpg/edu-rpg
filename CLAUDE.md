@@ -43,7 +43,7 @@ edu-rpg/
   - **일반 (normal)**: flat percentage deduction (e.g., 5%)
   - **비율형 (rate)**: unit-based percentage (e.g., 10% per 10분 of lateness)
   - **초기화 (reset)**: confiscates all remaining XP
-- **penalties**: applied penalty records with `count`, `student_name`, `xp_before`, `xp_deducted`
+- **penalties**: applied penalty records with `count`, `student_name`, `xp_deducted`
 
 RLS enforced: students see only their own data, admin sees all. `is_admin()` SQL helper function. Admin can update any profile (for `total_xp` sync).
 

@@ -194,7 +194,6 @@ CREATE TABLE penalties (
     penalty_type_id INTEGER NOT NULL REFERENCES penalty_types(id),
     penalty_type_name TEXT NOT NULL,
     penalty_percent INTEGER NOT NULL,
-    xp_before INTEGER NOT NULL,
     xp_deducted INTEGER NOT NULL,
     count INTEGER NOT NULL DEFAULT 1,
     student_name TEXT,
