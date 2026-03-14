@@ -3,65 +3,6 @@
 let currentProfile = null;
 let allValueTypes = [];
 
-// --- XP Recalculation Utility ---
-async function recalculateAndSaveXP(studentId) {
-    const { data: entries } = await db
-        .from('daily_entries')
-        .select('*')
-        .eq('student_id', studentId)
-        .eq('status', 'approved');
-
-    let totalXP = 0;
-
-    if (entries && entries.length > 0) {
-        entries.forEach(e => {
-            if (e.greetings) totalXP += 3;
-            if (e.assignments > 0) totalXP += e.assignments * 5;
-            if (e.writing_type === '5%') totalXP += 5;
-            if (e.writing_type === '10%') totalXP += 10;
-            if (e.bonus_points) totalXP += e.bonus_points;
-        });
-
-        const entryIds = entries.map(e => e.id);
-        const { data: stamps } = await db
-            .from('entry_value_stamps')
-            .select('points, count')
-            .in('entry_id', entryIds);
-
-        if (stamps) {
-            stamps.forEach(s => totalXP += s.points * (s.count || 1));
-        }
-
-        const { data: titles } = await db
-            .from('titles')
-            .select('id')
-            .eq('student_id', studentId)
-            .eq('status', 'approved');
-
-        if (titles) {
-            totalXP += titles.length * 20;
-        }
-    }
-
-    const { data: penalties } = await db
-        .from('penalties')
-        .select('xp_deducted')
-        .eq('student_id', studentId);
-
-    if (penalties) {
-        penalties.forEach(p => totalXP -= p.xp_deducted);
-    }
-
-    totalXP = Math.max(0, totalXP);
-
-    await db
-        .from('profiles')
-        .update({ total_xp: totalXP })
-        .eq('id', studentId);
-
-    return totalXP;
-}
-
 (async () => {
     currentProfile = await requireAuth(['admin']);
     if (!currentProfile) return;
@@ -188,15 +129,14 @@ async function approveEntry(entryId) {
         .eq('entry_id', entryId)
         .eq('status', 'pending');
 
-    // Check milestones for this student
+    // Recalculate XP (also checks milestones internally)
     const { data: entry } = await db
         .from('daily_entries')
-        .select('student_id, profiles!daily_entries_student_id_fkey(name)')
+        .select('student_id')
         .eq('id', entryId)
         .single();
 
     if (entry) {
-        await checkMilestones(entry.student_id, entry.profiles?.name || '');
         await recalculateAndSaveXP(entry.student_id);
     }
 
@@ -248,10 +188,10 @@ async function rejectEntry(entryId) {
 async function approveAll() {
     if (!confirm('모든 대기 중인 항목을 승인하시겠습니까?')) return;
 
-    // Get pending entries before approving (for milestone checks)
+    // Get pending entries before approving (for XP recalculation)
     const { data: pendingEntries } = await db
         .from('daily_entries')
-        .select('student_id, profiles!daily_entries_student_id_fkey(name)')
+        .select('student_id')
         .eq('status', 'pending');
 
     const auditFields = { modified_at: getNowKST(), modified_by: currentProfile.id };
@@ -266,13 +206,12 @@ async function approveAll() {
         .update({ status: 'approved', ...auditFields })
         .eq('status', 'pending');
 
-    // Check milestones and recalculate XP for each affected student
+    // Recalculate XP for each affected student (also checks milestones internally)
     if (pendingEntries) {
         const checked = new Set();
         for (const e of pendingEntries) {
             if (checked.has(e.student_id)) continue;
             checked.add(e.student_id);
-            await checkMilestones(e.student_id, e.profiles?.name || '');
             await recalculateAndSaveXP(e.student_id);
         }
     }
@@ -453,9 +392,8 @@ async function saveEdit() {
         await db.from('titles').insert(titleRecords);
     }
 
-    // Check milestones and recalculate XP
+    // Recalculate XP (also checks milestones internally)
     if (editEntryData) {
-        await checkMilestones(editEntryData.student_id, studentName);
         await recalculateAndSaveXP(editEntryData.student_id);
     }
 

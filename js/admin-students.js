@@ -49,68 +49,6 @@ async function loadPenaltyTypes() {
     allPenaltyTypes = data || [];
 }
 
-// --- XP Recalculation Utility ---
-async function recalculateAndSaveXP(studentId) {
-    const { data: entries } = await db
-        .from('daily_entries')
-        .select('*')
-        .eq('student_id', studentId)
-        .eq('status', 'approved');
-
-    let totalXP = 0;
-
-    if (entries && entries.length > 0) {
-        entries.forEach(e => {
-            if (e.greetings) totalXP += 3;
-            if (e.assignments > 0) totalXP += e.assignments * 5;
-            if (e.writing_type === '5%') totalXP += 5;
-            if (e.writing_type === '10%') totalXP += 10;
-            if (e.bonus_points) totalXP += e.bonus_points;
-        });
-
-        const entryIds = entries.map(e => e.id);
-        const { data: stamps } = await db
-            .from('entry_value_stamps')
-            .select('points, count')
-            .in('entry_id', entryIds);
-
-        if (stamps) {
-            stamps.forEach(s => totalXP += s.points * (s.count || 1));
-        }
-
-        const { data: titles } = await db
-            .from('titles')
-            .select('id')
-            .eq('student_id', studentId)
-            .eq('status', 'approved');
-
-        if (titles) {
-            totalXP += titles.length * 20;
-        }
-    }
-    console.log('totalXP: ' + totalXP);
-
-    const { data: penalties } = await db
-        .from('penalties')
-        .select('xp_deducted')
-        .eq('student_id', studentId);
-    console.log(penalties);
-
-    if (penalties) {
-        penalties.forEach(p => totalXP -= p.xp_deducted);
-    }
-
-    totalXP = Math.max(0, totalXP);
-    console.log('final xp :'+ totalXP)
-
-    await db
-        .from('profiles')
-        .update({ total_xp: totalXP })
-        .eq('id', studentId);
-
-    return totalXP;
-}
-
 function calculateLevel(totalXP) {
     const level = Math.floor(totalXP / 100) + 1;
     const remainder = totalXP % 100;
@@ -459,8 +397,7 @@ async function submitAdminEntry() {
         await db.from('titles').insert(titleRecords);
     }
 
-    // Check milestones and recalculate XP
-    await checkMilestones(selectedStudentId, selectedStudentName);
+    // Recalculate XP (also checks milestones internally)
     await recalculateAndSaveXP(selectedStudentId);
 
     // Reset form
