@@ -1,15 +1,13 @@
 // Notification Bell UI
 let notifDropdownOpen = false;
 
-async function initNotificationBell() {
+async function initNotificationBell(userId) {
     const bellBtn = document.getElementById('notif-bell');
     const dropdown = document.getElementById('notif-dropdown');
     if (!bellBtn || !dropdown) return;
 
-    // Get current user id for filtering
-    const { data: { user } } = await db.auth.getUser();
-    if (!user) return;
-    window._notifUserId = user.id;
+    if (!userId) return;
+    window._notifUserId = userId;
 
     await refreshNotifBadge();
 

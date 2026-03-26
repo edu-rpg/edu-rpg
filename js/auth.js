@@ -2,8 +2,17 @@
 
 // Check if user is logged in and get their profile
 async function getProfile() {
-    const { data: { user } } = await db.auth.getUser();
-    if (!user) return null;
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return null;
+
+    // If token is expired, sign out cleanly instead of auto-refreshing
+    const expiresAt = session.expires_at;
+    if (expiresAt && expiresAt * 1000 < Date.now()) {
+        await db.auth.signOut();
+        return null;
+    }
+
+    const user = session.user;
 
     const { data: profile } = await db
         .from('profiles')
@@ -32,7 +41,7 @@ async function requireAuth(allowedRoles) {
 
     // Initialize notification bell if present
     if (typeof initNotificationBell === 'function') {
-        await initNotificationBell();
+        await initNotificationBell(profile.id);
     }
 
     return profile;
