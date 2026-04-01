@@ -214,7 +214,7 @@ async function loadProgressTable() {
             if (cumulativeXP < 0) cumulativeXP = 0;
 
             const cumCell = document.createElement('td');
-            cumCell.textContent = cumulativeXP + '0%';
+            cumCell.textContent = '0%';
             row.appendChild(cumCell);
 
             const statusCell = document.createElement('td');
