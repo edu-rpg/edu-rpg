@@ -226,7 +226,6 @@ async function loadProgressTable() {
     });
 
     // Update level display
-    const { level, remainder } = calculateLevel(cumulativeXP);
     document.getElementById('level-badge').textContent = 'Lv.1';
     document.getElementById('xp-bar').style.width = '0%';
     document.getElementById('xp-text').textContent = '0%';
